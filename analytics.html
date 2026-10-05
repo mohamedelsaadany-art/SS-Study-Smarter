@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>SS Study Smarter – Analytics</title>
+<title>SS Study Smarter â€“ Analytics</title>
 <style>
 :root{--bg:#fff;--card:#FBF7FA;--ink:#22252A;--muted:#5E5867;--a:#12406F;--b:#C2478E;--rule:#D9A9C6}
 @media(prefers-color-scheme:dark){:root{--bg:#17161B;--card:#201E25;--ink:#ECE8EF;--muted:#B0A8B8;--a:#8cc4f4;--b:#E37DB6;--rule:#5B3B54}}
@@ -20,11 +20,10 @@ input,button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid va
 .err{color:#a3213a}
 </style></head><body><main>
 <h1>Visitor analytics</h1>
-<div id="login"><input id="pw" type="password" placeholder="Dashboard passphrase"> <button id="go">Open</button> <span id="err" class="err"></span></div>
-<div id="out" hidden>
+<div id="login"><span id="err" class="err"></span></div><div id="out" hidden>
   <div class="cards" id="cards"></div>
   <h2>Per day</h2>
-  <div class="legend"><span style="color:var(--a)">■ visitors</span> &nbsp; <span style="color:var(--b)">■ questions answered</span></div>
+  <div class="legend"><span style="color:var(--a)">â–  visitors</span> &nbsp; <span style="color:var(--b)">â–  questions answered</span></div>
   <div class="bars" id="bars"></div>
   <table id="daily"></table>
   <h2>Per exam day</h2>
@@ -34,11 +33,11 @@ input,button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid va
 <script>
 const C = window.SSA || {};
 const $ = id => document.getElementById(id);
-async function load(pw){
+async function load(){
   const r = await fetch(C.url + "/rest/v1/rpc/get_stats", {method:"POST",
     headers:{apikey:C.key,Authorization:"Bearer "+C.key,"Content-Type":"application/json"},
-    body:JSON.stringify({p_key:pw})});
-  if(!r.ok) throw new Error(r.status===400||r.status===403?"Wrong passphrase":"Error "+r.status);
+    body:"{}"});
+  if(!r.ok) throw new Error("Error "+r.status);
   return r.json();
 }
 function table(el, cols, rows){
@@ -54,12 +53,12 @@ function render(s){
   table($("daily"),[["Date","d"],["Visitors","visitors"],["Page views","views"],["Questions answered","answered"],["Parts done","parts_done"],["Exams done","exams_done"]],[...s.daily].reverse());
   table($("byexam"),[["Exam day","exam_day"],["Visitors","visitors"],["Questions answered","answered"],["Exams done","exams_done"]],s.by_exam);
 }
-async function open(pw){
-  try{ const s = await load(pw); sessionStorage.setItem("ssa-pw",pw); $("login").hidden=true; $("out").hidden=false; render(s); }
+async function start(){
+  if(!C.url){ $("err").textContent="Not configured yet (config.js is empty)."; return; }
+  try{ const s = await load(); $("login").hidden=true; $("out").hidden=false; render(s); }
   catch(e){ $("err").textContent = e.message; }
 }
-$("go").onclick=()=>open($("pw").value);
-$("pw").onkeydown=e=>{if(e.key==="Enter")open($("pw").value)};
-if(!C.url) $("err").textContent="Not configured yet (config.js is empty).";
-else { const p=sessionStorage.getItem("ssa-pw"); if(p) open(p); }
+start();
 </script></main></body></html>
+
+

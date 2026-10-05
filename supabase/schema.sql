@@ -1,4 +1,4 @@
--- Run once in Supabase > SQL Editor. Change 'CHANGE-ME' to your dashboard passphrase first.
+﻿-- Run once in Supabase > SQL Editor. No passphrase: the dashboard link is simply not shared.
 create table if not exists events (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
@@ -13,16 +13,9 @@ create policy "anon insert" on events for insert to anon
   with check (kind in ('view','answered','part_done','exam_done') and n between 0 and 500 and length(vid) <= 64);
 -- no select policy: visitors can write counts but never read them
 
-create table if not exists settings (k text primary key, v text not null);
-alter table settings enable row level security;
-insert into settings values ('dash_key', 'CHANGE-ME') on conflict (k) do update set v = excluded.v;
-
-create or replace function get_stats(p_key text) returns json
+create or replace function get_stats() returns json
 language plpgsql security definer set search_path = public as $$
 begin
-  if p_key is distinct from (select v from settings where k = 'dash_key') then
-    raise exception 'forbidden';
-  end if;
   return json_build_object(
     'daily', (select coalesce(json_agg(r order by d), '[]'::json) from (
       select (created_at at time zone 'Africa/Cairo')::date as d,
@@ -42,6 +35,10 @@ begin
              'exams_done', count(*) filter (where kind = 'exam_done')) from events)
   );
 end $$;
-grant execute on function get_stats(text) to anon;
+grant execute on function get_stats() to anon;
 
 grant insert on events to anon;
+
+drop function if exists get_stats(text);
+drop table if exists settings;
+
