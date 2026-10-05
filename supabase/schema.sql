@@ -43,3 +43,5 @@ begin
   );
 end $$;
 grant execute on function get_stats(text) to anon;
+
+grant insert on events to anon;
