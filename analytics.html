@@ -1,64 +1,878 @@
-﻿<!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>SS Study Smarter â€“ Analytics</title>
-<style>
-:root{--bg:#fff;--card:#FBF7FA;--ink:#22252A;--muted:#5E5867;--a:#12406F;--b:#C2478E;--rule:#D9A9C6}
-@media(prefers-color-scheme:dark){:root{--bg:#17161B;--card:#201E25;--ink:#ECE8EF;--muted:#B0A8B8;--a:#8cc4f4;--b:#E37DB6;--rule:#5B3B54}}
-body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:16px}
-main{max-width:900px;margin:auto}h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:28px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px}
-.card b{display:block;font-size:1.6rem}.card span{color:var(--muted);font-size:.85rem}
-table{width:100%;border-collapse:collapse;background:var(--card)}th,td{padding:6px 8px;border-bottom:1px solid var(--rule);text-align:right}
-th:first-child,td:first-child{text-align:left}
-.bars{display:flex;align-items:flex-end;gap:3px;height:140px;border-bottom:1px solid var(--rule);padding-top:8px}
-.bar{flex:1;background:var(--a);min-width:4px;border-radius:3px 3px 0 0;position:relative}.bar.b{background:var(--b)}
-.legend{color:var(--muted);font-size:.8rem;margin:6px 0}
-input,button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--rule)}button{background:var(--a);color:#fff;border:0;cursor:pointer}
-.err{color:#a3213a}
-</style></head><body><main>
-<h1>Visitor analytics</h1>
-<div id="login"><span id="err" class="err"></span></div><div id="out" hidden>
-  <div class="cards" id="cards"></div>
-  <h2>Per day</h2>
-  <div class="legend"><span style="color:var(--a)">â–  visitors</span> &nbsp; <span style="color:var(--b)">â–  questions answered</span></div>
-  <div class="bars" id="bars"></div>
-  <table id="daily"></table>
-  <h2>Per exam day</h2>
-  <table id="byexam"></table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>SS Study Smarter • Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      
+      --bg: #0b0f19;
+      --bg-gradient: radial-gradient(circle at 50% 0%, #17223b 0%, #0b0f19 75%);
+      --card-bg: rgba(18, 26, 44, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover-border: rgba(99, 102, 241, 0.3);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --primary-glow: rgba(99, 102, 241, 0.15);
+      
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-amber: #f59e0b;
+
+      --table-row-hover: rgba(255, 255, 255, 0.03);
+      --table-header-bg: rgba(15, 23, 42, 0.6);
+      --badge-bg: rgba(99, 102, 241, 0.12);
+      --badge-text: #a5b4fc;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --bg-gradient: radial-gradient(circle at 50% 0%, #e2e8f0 0%, #f8fafc 80%);
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(226, 232, 240, 0.8);
+      --card-hover-border: rgba(99, 102, 241, 0.4);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #94a3b8;
+      
+      --table-row-hover: rgba(241, 245, 249, 0.8);
+      --table-header-bg: rgba(241, 245, 249, 0.9);
+      --badge-bg: rgba(99, 102, 241, 0.1);
+      --badge-text: #4f46e5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 24px 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .brand-title p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 9px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-main);
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.18s ease;
+      text-decoration: none;
+    }
+    .btn:hover {
+      border-color: var(--primary-light);
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Live status badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Stat Cards Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card:hover {
+      border-color: var(--card-hover-border);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent, var(--primary)), transparent);
+      opacity: 0.6;
+    }
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .stat-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stat-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-glow);
+      color: var(--accent, var(--primary));
+    }
+    .stat-val {
+      font-size: 2.2rem;
+      font-weight: 800;
+      font-family: var(--font);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-sub {
+      font-size: 0.78rem;
+      color: var(--text-subtle);
+      margin-top: 6px;
+    }
+
+    /* Section Cards */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      margin-bottom: 24px;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-controls {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 3px;
+      border-radius: 9px;
+      border: 1px solid var(--card-border);
+    }
+    .chart-btn {
+      font-family: var(--font);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chart-btn.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Interactive SVG Bar Chart */
+    .chart-container {
+      width: 100%;
+      height: 240px;
+      position: relative;
+    }
+    svg.chart-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .chart-bar {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .chart-bar:hover {
+      opacity: 0.85;
+      filter: brightness(1.2);
+    }
+    .chart-grid-line {
+      stroke: var(--card-border);
+      stroke-dasharray: 4;
+      stroke-width: 1;
+    }
+    .chart-label {
+      font-size: 10px;
+      fill: var(--text-subtle);
+      font-family: var(--mono);
+    }
+
+    /* Tooltip */
+    #chart-tooltip {
+      position: absolute;
+      display: none;
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-family: var(--font);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      pointer-events: none;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+      z-index: 20;
+      white-space: nowrap;
+      transform: translate(-50%, -110%);
+    }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+    th {
+      background: var(--table-header-bg);
+      padding: 12px 16px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--card-border);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-border);
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr {
+      transition: background 0.12s ease;
+    }
+    tbody tr:hover {
+      background: var(--table-row-hover);
+    }
+    .num-col {
+      text-align: right;
+      font-family: var(--mono);
+    }
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: var(--mono);
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+    .pill-green {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-emerald);
+    }
+
+    /* Progress bar in table */
+    .progress-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .progress-bar-bg {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      min-width: 60px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #6366f1, #06b6d4);
+    }
+
+    /* Error & Loading state */
+    .loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 0;
+      gap: 14px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .err-box {
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #fda4af;
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 16px 10px; }
+      .brand-title h1 { font-size: 1.15rem; }
+      .stat-val { font-size: 1.8rem; }
+      .section-card { padding: 16px 12px; }
+      th, td { padding: 10px 10px; font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 20V10"></path>
+          <path d="M12 20V4"></path>
+          <path d="M6 20v-6"></path>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>SS Study Smarter</h1>
+        <p>Live Visitor & Performance Telemetry</p>
+      </div>
+    </div>
+    
+    <div class="header-actions">
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot"></span>
+        <span>Connecting</span>
+      </div>
+      <button class="btn" id="refresh-btn" onclick="start(true)">
+        <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        Sync
+      </button>
+      <a class="btn btn-primary" href="./">
+        Go to Exams
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14"></path>
+          <path d="M12 5l7 7-7 7"></path>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Error display -->
+  <div id="err-box" class="err-box" style="display:none"></div>
+
+  <!-- Loading State -->
+  <div id="loader" class="loader">
+    <div class="spinner"></div>
+    <p>Aggregating anonymous analytics telemetry...</p>
+  </div>
+
+  <!-- Content Dashboard -->
+  <div id="dashboard" style="display:none">
+    
+    <!-- Top KPI Cards -->
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent: #6366f1;">
+        <div class="stat-header">
+          <span class="stat-label">Unique Visitors</span>
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-val" id="kpi-visitors">0</div>
+        <div class="stat-sub">Across all student sessions</div>
+      </div>
+
+      <div class="stat-card" style="--accent: #06b6d4;">
+        <div class="stat-header">
+          <span class="stat-label">Questions Solved</span>
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-val" id="kpi-answered">0</div>
+        <div class="stat-sub">Written responses recorded</div>
+      </div>
+
+      <div class="stat-card" style="--accent: #10b981;">
+        <div class="stat-header">
+          <span class="stat-label">Exams Completed</span>
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="7"></circle>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-val" id="kpi-exams">0</div>
+        <div class="stat-sub">Both Essay & Case parts finished</div>
+      </div>
+
+      <div class="stat-card" style="--accent: #f59e0b;">
+        <div class="stat-header">
+          <span class="stat-label">Engagement Ratio</span>
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-val" id="kpi-ratio">0.0</div>
+        <div class="stat-sub">Questions answered per visitor</div>
+      </div>
+    </div>
+
+    <!-- Daily Trend Interactive Chart -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          Daily Activity Trajectory (Past 30 Days)
+        </div>
+        <div class="chart-controls">
+          <button class="chart-btn active" id="btn-chart-visitors" onclick="switchChartMetric('visitors')">Visitors</button>
+          <button class="chart-btn" id="btn-chart-questions" onclick="switchChartMetric('answered')">Questions Answered</button>
+        </div>
+      </div>
+
+      <div class="chart-container" id="chart-wrap">
+        <svg class="chart-svg" id="chart-svg" preserveAspectRatio="none"></svg>
+        <div id="chart-tooltip"></div>
+      </div>
+    </div>
+
+    <!-- Exam Days Breakdown -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          Exam Day Breakdown & Completion Rates
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Exam Day</th>
+              <th class="num-col">Active Students</th>
+              <th class="num-col">Questions Solved</th>
+              <th>Engagement Share</th>
+              <th class="num-col">Full Completions</th>
+            </tr>
+          </thead>
+          <tbody id="exam-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Full Daily Log Table -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          Historical Daily Log
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date (Cairo)</th>
+              <th class="num-col">Unique Visitors</th>
+              <th class="num-col">Page Views</th>
+              <th class="num-col">Questions Solved</th>
+              <th class="num-col">Part Submissions</th>
+              <th class="num-col">Complete Exams</th>
+            </tr>
+          </thead>
+          <tbody id="daily-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
 </div>
+
 <script src="config.js"></script>
 <script>
 const C = window.SSA || {};
+let currentStats = null;
+let currentMetric = 'visitors';
+
 const $ = id => document.getElementById(id);
-async function load(){
-  const r = await fetch(C.url + "/rest/v1/rpc/get_stats", {method:"POST",
-    headers:{apikey:C.key,Authorization:"Bearer "+C.key,"Content-Type":"application/json"},
-    body:"{}"});
-  if(!r.ok) throw new Error("Error "+r.status);
+
+async function loadData() {
+  const r = await fetch(C.url + "/rest/v1/rpc/get_stats", {
+    method: "POST",
+    headers: {
+      apikey: C.key,
+      Authorization: "Bearer " + C.key,
+      "Content-Type": "application/json"
+    },
+    body: "{}"
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status + " while contacting database.");
   return r.json();
 }
-function table(el, cols, rows){
-  el.innerHTML = "<tr>"+cols.map(c=>"<th>"+c[0]+"</th>").join("")+"</tr>" +
-    rows.map(r=>"<tr>"+cols.map(c=>"<td>"+r[c[1]]+"</td>").join("")+"</tr>").join("");
+
+function switchChartMetric(m) {
+  currentMetric = m;
+  $('btn-chart-visitors').classList.toggle('active', m === 'visitors');
+  $('btn-chart-questions').classList.toggle('active', m === 'answered');
+  if (currentStats) renderChart(currentStats.daily);
 }
-function render(s){
-  $("cards").innerHTML = [["Unique visitors",s.totals.visitors],["Questions answered",s.totals.answered],["Exams completed",s.totals.exams_done]]
-    .map(x=>`<div class="card"><b>${x[1]}</b><span>${x[0]}</span></div>`).join("");
-  const d = s.daily.slice(-30);
-  const mv = Math.max(1,...d.map(x=>x.visitors)), ma = Math.max(1,...d.map(x=>x.answered));
-  $("bars").innerHTML = d.map(x=>`<div class="bar" title="${x.d}: ${x.visitors} visitors" style="height:${x.visitors/mv*100}%"></div><div class="bar b" title="${x.d}: ${x.answered} answered" style="height:${x.answered/ma*100}%"></div>`).join("");
-  table($("daily"),[["Date","d"],["Visitors","visitors"],["Page views","views"],["Questions answered","answered"],["Parts done","parts_done"],["Exams done","exams_done"]],[...s.daily].reverse());
-  table($("byexam"),[["Exam day","exam_day"],["Visitors","visitors"],["Questions answered","answered"],["Exams done","exams_done"]],s.by_exam);
+
+function renderKPIs(s) {
+  const visitors = s.totals.visitors || 0;
+  const answered = s.totals.answered || 0;
+  const exams = s.totals.exams_done || 0;
+  
+  $('kpi-visitors').textContent = visitors.toLocaleString();
+  $('kpi-answered').textContent = answered.toLocaleString();
+  $('kpi-exams').textContent = exams.toLocaleString();
+  $('kpi-ratio').textContent = visitors > 0 ? (answered / visitors).toFixed(1) : "0.0";
 }
-async function start(){
-  if(!C.url){ $("err").textContent="Not configured yet (config.js is empty)."; return; }
-  try{ const s = await load(); $("login").hidden=true; $("out").hidden=false; render(s); }
-  catch(e){ $("err").textContent = e.message; }
+
+function renderChart(daily) {
+  const svg = $('chart-svg');
+  const tooltip = $('chart-tooltip');
+  const d = (daily && daily.length > 0) ? daily.slice(-30) : [{ d: 'Today', visitors: 0, answered: 0 }];
+  
+  const width = svg.clientWidth || 900;
+  const height = svg.clientHeight || 240;
+  const paddingBottom = 26;
+  const paddingTop = 20;
+  const chartHeight = height - paddingBottom - paddingTop;
+  
+  const values = d.map(item => Number(item[currentMetric]) || 0);
+  const maxVal = Math.max(5, ...values);
+  
+  svg.innerHTML = '';
+  
+  // Horizontal grid lines (3 levels)
+  [0, 0.5, 1].forEach(pct => {
+    const y = paddingTop + chartHeight * (1 - pct);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', '0');
+    line.setAttribute('x2', width);
+    line.setAttribute('y1', y);
+    line.setAttribute('y2', y);
+    line.setAttribute('class', 'chart-grid-line');
+    svg.appendChild(line);
+  });
+
+  const barCount = d.length;
+  const slotWidth = width / barCount;
+  const barWidth = Math.min(28, Math.max(6, slotWidth * 0.58));
+  
+  d.forEach((item, i) => {
+    const val = values[i];
+    const barH = (val / maxVal) * chartHeight;
+    const x = i * slotWidth + (slotWidth - barWidth) / 2;
+    const y = paddingTop + (chartHeight - barH);
+    
+    // Bar
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', barWidth);
+    rect.setAttribute('height', Math.max(3, barH));
+    rect.setAttribute('rx', '4');
+    rect.setAttribute('class', 'chart-bar');
+    rect.setAttribute('fill', currentMetric === 'visitors' ? 'url(#grad-bar-v)' : 'url(#grad-bar-a)');
+    
+    // Hover event for tooltip
+    rect.addEventListener('mouseenter', e => {
+      const rectBox = rect.getBoundingClientRect();
+      const parentBox = $('chart-wrap').getBoundingClientRect();
+      tooltip.style.left = (rectBox.left - parentBox.left + barWidth / 2) + 'px';
+      tooltip.style.top = (rectBox.top - parentBox.top) + 'px';
+      tooltip.innerHTML = `<strong>${item.d}</strong><br>${currentMetric === 'visitors' ? 'Visitors' : 'Questions'}: <b>${val}</b>`;
+      tooltip.style.display = 'block';
+    });
+    rect.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+    });
+    
+    svg.appendChild(rect);
+    
+    // Date label (show every Nth date to avoid crowding)
+    const step = Math.ceil(barCount / 10);
+    if (i % step === 0 || i === barCount - 1) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', x + barWidth / 2);
+      text.setAttribute('y', height - 6);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('class', 'chart-label');
+      text.textContent = item.d.slice(5); // MM-DD
+      svg.appendChild(text);
+    }
+  });
+
+  // Linear Gradients in defs
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  defs.innerHTML = `
+    <linearGradient id="grad-bar-v" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="grad-bar-a" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#0891b2" />
+    </linearGradient>
+  `;
+  svg.prepend(defs);
 }
+
+function renderTables(s) {
+  // Exam Breakdown Table
+  const examTbody = $('exam-tbody');
+  const byExam = s.by_exam || [];
+  const maxAns = Math.max(1, ...byExam.map(x => x.answered || 0));
+  
+  if (byExam.length === 0) {
+    examTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-subtle);padding:24px;">No exam activity recorded yet. Once students start solving questions, breakdown per day appears here.</td></tr>`;
+  } else {
+    examTbody.innerHTML = byExam.map(row => {
+      const pct = Math.min(100, Math.round(((row.answered || 0) / maxAns) * 100));
+      return `
+        <tr>
+          <td><span class="pill">Day ${row.exam_day}</span></td>
+          <td class="num-col">${row.visitors || 0}</td>
+          <td class="num-col"><strong>${(row.answered || 0).toLocaleString()}</strong></td>
+          <td>
+            <div class="progress-cell">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: ${pct}%"></div>
+              </div>
+              <span style="font-size:0.7rem;color:var(--text-subtle);width:32px;">${pct}%</span>
+            </div>
+          </td>
+          <td class="num-col"><span class="pill pill-green">${row.exams_done || 0}</span></td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  // Daily History Table
+  const dailyTbody = $('daily-tbody');
+  const daily = [...(s.daily || [])].reverse();
+  
+  if (daily.length === 0) {
+    dailyTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-subtle);padding:24px;">No historical telemetry found.</td></tr>`;
+  } else {
+    dailyTbody.innerHTML = daily.map(row => `
+      <tr>
+        <td><strong>${row.d}</strong></td>
+        <td class="num-col">${row.visitors || 0}</td>
+        <td class="num-col">${row.views || 0}</td>
+        <td class="num-col" style="color:var(--primary-light);font-weight:600;">${(row.answered || 0).toLocaleString()}</td>
+        <td class="num-col">${row.parts_done || 0}</td>
+        <td class="num-col"><span class="pill pill-green">${row.exams_done || 0}</span></td>
+      </tr>
+    `).join("");
+  }
+}
+
+async function start(isManual = false) {
+  const errBox = $('err-box');
+  const loader = $('loader');
+  const dash = $('dashboard');
+  const badge = $('status-badge');
+  const refreshIcon = $('refresh-icon');
+
+  errBox.style.display = 'none';
+  if (isManual) refreshIcon.style.animation = "spin 0.6s linear infinite";
+
+  if (!C.url || !C.key) {
+    loader.style.display = 'none';
+    errBox.textContent = "Supabase configuration missing in config.js.";
+    errBox.style.display = 'block';
+    badge.innerHTML = `<span class="status-dot" style="background:#f43f5e;box-shadow:none;"></span><span style="color:#f43f5e;">Unconfigured</span>`;
+    return;
+  }
+
+  try {
+    const s = await loadData();
+    currentStats = s;
+    renderKPIs(s);
+    renderChart(s.daily);
+    renderTables(s);
+    
+    loader.style.display = 'none';
+    dash.style.display = 'block';
+    badge.innerHTML = `<span class="status-dot"></span><span>Live Database Connected</span>`;
+  } catch (err) {
+    loader.style.display = 'none';
+    errBox.textContent = "Telemetry error: " + err.message;
+    errBox.style.display = 'block';
+    badge.innerHTML = `<span class="status-dot" style="background:#f43f5e;box-shadow:none;"></span><span style="color:#f43f5e;">Disconnected</span>`;
+  } finally {
+    refreshIcon.style.animation = "";
+  }
+}
+
+window.addEventListener('resize', () => {
+  if (currentStats && currentStats.daily) renderChart(currentStats.daily);
+});
+
 start();
-</script></main></body></html>
+// Auto-refresh telemetry every 60 seconds
+setInterval(() => start(false), 60000);
+</script>
 
-
+</body>
+</html>
