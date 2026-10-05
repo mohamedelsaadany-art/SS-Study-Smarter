@@ -1,10 +1,20 @@
-﻿"""Fetch the Claude artifact iframe HTML and write it to index.html (used by GitHub Actions)."""
+"""Fetch the Claude artifact iframe HTML and write it to index.html (used by GitHub Actions)."""
 import sys
 from playwright.sync_api import sync_playwright
 
 URL = "https://claude.ai/artifact/KsWnh4DMA3Dps7ED5SumU8"
 MIN_SIZE = 1_000_000
 MARKER = "IM Camp"
+
+TAG = '<script src="config.js"></script><script src="tracker.js"></script>'
+
+
+def inject(html):
+    """Add the anonymous tracker to the fetched artifact HTML (idempotent)."""
+    if TAG in html:
+        return html
+    i = html.rfind("</body>")
+    return html[:i] + TAG + html[i:] if i != -1 else html + TAG
 
 
 def fetch():
@@ -35,7 +45,7 @@ def main():
             print("error:", e)
             html = None
         if html and len(html) >= MIN_SIZE and MARKER in html:
-            open("index.html", "w", encoding="utf-8", newline="").write(html)
+            open("index.html", "w", encoding="utf-8", newline="").write(inject(html))
             print("OK", len(html))
             return 0
         print("attempt", attempt + 1, "invalid")

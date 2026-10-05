@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>SS Study Smarter – Analytics</title>
+<style>
+:root{--bg:#fff;--card:#FBF7FA;--ink:#22252A;--muted:#5E5867;--a:#12406F;--b:#C2478E;--rule:#D9A9C6}
+@media(prefers-color-scheme:dark){:root{--bg:#17161B;--card:#201E25;--ink:#ECE8EF;--muted:#B0A8B8;--a:#8cc4f4;--b:#E37DB6;--rule:#5B3B54}}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:16px}
+main{max-width:900px;margin:auto}h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:28px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px}
+.card b{display:block;font-size:1.6rem}.card span{color:var(--muted);font-size:.85rem}
+table{width:100%;border-collapse:collapse;background:var(--card)}th,td{padding:6px 8px;border-bottom:1px solid var(--rule);text-align:right}
+th:first-child,td:first-child{text-align:left}
+.bars{display:flex;align-items:flex-end;gap:3px;height:140px;border-bottom:1px solid var(--rule);padding-top:8px}
+.bar{flex:1;background:var(--a);min-width:4px;border-radius:3px 3px 0 0;position:relative}.bar.b{background:var(--b)}
+.legend{color:var(--muted);font-size:.8rem;margin:6px 0}
+input,button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--rule)}button{background:var(--a);color:#fff;border:0;cursor:pointer}
+.err{color:#a3213a}
+</style></head><body><main>
+<h1>Visitor analytics</h1>
+<div id="login"><input id="pw" type="password" placeholder="Dashboard passphrase"> <button id="go">Open</button> <span id="err" class="err"></span></div>
+<div id="out" hidden>
+  <div class="cards" id="cards"></div>
+  <h2>Per day</h2>
+  <div class="legend"><span style="color:var(--a)">■ visitors</span> &nbsp; <span style="color:var(--b)">■ questions answered</span></div>
+  <div class="bars" id="bars"></div>
+  <table id="daily"></table>
+  <h2>Per exam day</h2>
+  <table id="byexam"></table>
+</div>
+<script src="config.js"></script>
+<script>
+const C = window.SSA || {};
+const $ = id => document.getElementById(id);
+async function load(pw){
+  const r = await fetch(C.url + "/rest/v1/rpc/get_stats", {method:"POST",
+    headers:{apikey:C.key,Authorization:"Bearer "+C.key,"Content-Type":"application/json"},
+    body:JSON.stringify({p_key:pw})});
+  if(!r.ok) throw new Error(r.status===400||r.status===403?"Wrong passphrase":"Error "+r.status);
+  return r.json();
+}
+function table(el, cols, rows){
+  el.innerHTML = "<tr>"+cols.map(c=>"<th>"+c[0]+"</th>").join("")+"</tr>" +
+    rows.map(r=>"<tr>"+cols.map(c=>"<td>"+r[c[1]]+"</td>").join("")+"</tr>").join("");
+}
+function render(s){
+  $("cards").innerHTML = [["Unique visitors",s.totals.visitors],["Questions answered",s.totals.answered],["Exams completed",s.totals.exams_done]]
+    .map(x=>`<div class="card"><b>${x[1]}</b><span>${x[0]}</span></div>`).join("");
+  const d = s.daily.slice(-30);
+  const mv = Math.max(1,...d.map(x=>x.visitors)), ma = Math.max(1,...d.map(x=>x.answered));
+  $("bars").innerHTML = d.map(x=>`<div class="bar" title="${x.d}: ${x.visitors} visitors" style="height:${x.visitors/mv*100}%"></div><div class="bar b" title="${x.d}: ${x.answered} answered" style="height:${x.answered/ma*100}%"></div>`).join("");
+  table($("daily"),[["Date","d"],["Visitors","visitors"],["Page views","views"],["Questions answered","answered"],["Parts done","parts_done"],["Exams done","exams_done"]],[...s.daily].reverse());
+  table($("byexam"),[["Exam day","exam_day"],["Visitors","visitors"],["Questions answered","answered"],["Exams done","exams_done"]],s.by_exam);
+}
+async function open(pw){
+  try{ const s = await load(pw); sessionStorage.setItem("ssa-pw",pw); $("login").hidden=true; $("out").hidden=false; render(s); }
+  catch(e){ $("err").textContent = e.message; }
+}
+$("go").onclick=()=>open($("pw").value);
+$("pw").onkeydown=e=>{if(e.key==="Enter")open($("pw").value)};
+if(!C.url) $("err").textContent="Not configured yet (config.js is empty).";
+else { const p=sessionStorage.getItem("ssa-pw"); if(p) open(p); }
+</script></main></body></html>
