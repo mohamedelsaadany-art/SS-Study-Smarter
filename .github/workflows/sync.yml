@@ -1,0 +1,27 @@
+﻿name: Daily artifact sync
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 09:00 Cairo/Riyadh (UTC+3)
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright && playwright install --with-deps chromium
+      - name: Fetch artifact
+        run: xvfb-run -a python scripts/fetch_artifact.py
+      - name: Commit if changed
+        run: |
+          git config user.name "mohamedelsaadany-art"
+          git config user.email "mohammad.al.saadany818@gmail.com"
+          git add index.html
+          git diff --cached --quiet && echo "No change" && exit 0
+          git commit -m "Auto-update $(date -u +%F)"
+          git push
