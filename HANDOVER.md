@@ -1,120 +1,143 @@
-# SS Study Smarter – Handover & Setup Guide
+# SS Study Smarter – Complete Handover & Architecture Guide
 
-This guide lets you (the owner of the original Claude artifact) run your own copy of the site:
-a GitHub Pages mirror of the artifact that **auto-updates daily** and has a **private visitor analytics dashboard**.
+This guide is prepared for the owner of the original Claude artifact to set up, operate, and maintain their own complete version of the **SS Study Smarter** platform:
+A GitHub Pages deployment of the test-prep app that **auto-updates daily from Claude** and features a **modern, private visitor analytics dashboard with revisitor retention and trend telemetry**.
 
-Reference copy: https://github.com/mohamedelsaadany-art/SS-Study-Smarter
-Reference site: https://mohamedelsaadany-art.github.io/SS-Study-Smarter/
+* **Reference Repository**: https://github.com/mohamedelsaadany-art/SS-Study-Smarter
+* **Reference Live Site**: https://mohamedelsaadany-art.github.io/SS-Study-Smarter/
+* **Reference Live Analytics**: https://mohamedelsaadany-art.github.io/SS-Study-Smarter/analytics.html
 
 ---
 
-## 1. What the project is
+## 1. Architecture Overview
 
-| Piece | File | Purpose |
+| Component | File / Location | Description |
 |---|---|---|
-| The site | `index.html` | Full HTML snapshot of the Claude artifact "IM Camp Exams" (a single self-contained page). Overwritten by the sync. |
-| Daily sync | `.github/workflows/sync.yml` + `scripts/fetch_artifact.py` | Opens the public artifact link in a real browser (Playwright), grabs the artifact's HTML, injects the tracker, commits if changed. |
-| Tracker | `tracker.js` | Anonymous usage counters. Hooks the app's own `localStorage` saves, so the artifact itself needs no edits. |
-| Config | `config.js` | Supabase URL + public (publishable) key. Empty = tracking off. |
-| Dashboard | `analytics.html` | Visitor analytics page (unlisted, no login). |
-| Database | `supabase/schema.sql` | Tables, security rules and the stats function. |
+| **Exams Web App** | `index.html` | Self-contained, full HTML interactive snapshot of "IM Camp Exams". Automatically kept in sync with your latest Claude artifact revisions. |
+| **Pages Deployment** | `.github/workflows/pages.yml` | GitHub Actions workflow that bundles and deploys the site to GitHub Pages in ~30 seconds on every push. |
+| **Automated Daily Sync** | `.github/workflows/sync.yml`<br>`scripts/fetch_artifact.py` | Headed Playwright automation running under `xvfb-run`. Runs hourly 05:00–10:00 Cairo time, pulls the newest artifact HTML, injects telemetry, and pushes commits if content changed. |
+| **Telemetry Tracker** | `tracker.js` | Privacy-respecting client telemetry agent. Hooks into the app's native `localStorage` saves; counts solved questions and exam completions without ever transmitting student answer text. |
+| **Telemetry Config** | `config.js` | Contains your public Supabase URL and publishable (anon) API key. Safe to publish publicly. |
+| **Analytics Dashboard** | `analytics.html` | Modern telemetry dashboard with **Light/Dark theme toggle**, **Revisitor retention cohorts**, and **Day-over-day trajectory charts**. |
+| **Database Schema** | `supabase/schema.sql` | PostgreSQL schema, Row-Level Security policies, and secure `get_stats()` analytical aggregation function. |
 
-### How it works
+### System Workflow
 
 ```mermaid
-flowchart LR
-  A["Claude artifact (public link)"] -->|"Playwright, hourly 05:00-10:00"| B["GitHub Actions"]
-  B -->|"inject tracker, commit if changed"| C["index.html on GitHub Pages"]
-  C --> D["Visitor's browser"]
-  D -->|"anonymous counts"| E["Supabase"]
-  E --> F["analytics.html dashboard"]
+flowchart TD
+  A["Claude Artifact (Public Link)"] -->|"Playwright under xvfb (05:00-10:00)"| B["GitHub Actions Sync"]
+  B -->|"Inject tracker.js & push if changed"| C["Repository (main branch)"]
+  C -->|"pages.yml trigger"| D["GitHub Pages Deployment"]
+  D --> E["Students / Visitors (Browser)"]
+  E -->|"Anonymous counts on save"| F["Supabase Postgres DB"]
+  F -->|"get_stats() RPC"| G["analytics.html (Live Dashboard)"]
 ```
 
-Student progress (answers, timers) is stored **only in each visitor's own browser** (`localStorage`, keys `imcamp-exam-day<N>-v2`). The tracker never sends answer text. It sends only: a random visitor ID, the exam day, and counts (page view, questions answered, part finished, exam finished).
+> **Student Privacy Guarantee**: All question drafts, answers, and timers remain strictly inside the student's browser (`localStorage`). The tracker records only a random anonymous device ID (`vid`), the exam day index, and numerical counters (page view, question count, exam complete).
 
 ---
 
-## 2. Setup steps
+## 2. Step-by-Step Setup Guide
 
-### 2.1 Create the GitHub repo
-1. Create a **public** repo (e.g. `SS-Study-Smarter`) and copy all files from the reference repo into it (fork or download).
-2. **Settings → Pages**: Source = `Deploy from a branch`, Branch = `main`, Folder = `/ (root)`.
-3. **Settings → Actions → General → Workflow permissions**: set **Read and write permissions** (the workflow pushes commits).
+### 2.1 Repository Setup
+1. Create a **public** GitHub repository (e.g. `SS-Study-Smarter`).
+2. Clone or copy all repository files from the reference repository into your new repo.
+3. Configure GitHub Pages:
+   * Go to **Settings → Pages**.
+   * Under **Build and deployment → Source**, choose **GitHub Actions** (this enables `.github/workflows/pages.yml` for fast deploys).
+4. Configure Workflow Permissions:
+   * Go to **Settings → Actions → General**.
+   * Under **Workflow permissions**, select **Read and write permissions** (needed for the sync job to commit updates).
 
-### 2.2 Point it at YOUR artifact
-Edit `scripts/fetch_artifact.py`:
+### 2.2 Link Your Claude Artifact
+Open `scripts/fetch_artifact.py` and configure your artifact URL:
 ```python
 URL = "https://claude.ai/artifact/<YOUR-ARTIFACT-ID>"
-MARKER = "IM Camp"   # any text that always appears in your page; used as a sanity check
+MARKER = "IM Camp"   # Text phrase present in your artifact to ensure valid fetch
 ```
-Optional: change the schedule in `.github/workflows/sync.yml` (cron is in **UTC**).
 
-> **Simpler alternative for the owner:** since you own the artifact, you can export/download its HTML (or copy it) and commit it as `index.html` yourself. The Playwright fetch exists only because the artifact link can't be downloaded with a plain request (Cloudflare blocks it). If you go manual, still add this line before `</body>` so analytics works:
-> `<script src="config.js"></script><script src="tracker.js"></script>`
+> **Manual Alternative (Zero Scraper Dependency)**:
+> Since you own the artifact, you can also export the artifact's HTML directly from Claude and commit it as `index.html`. If you do this manually, simply ensure the tracker snippet is included right before `</body>`:
+> ```html
+> <script src="config.js"></script><script src="tracker.js"></script>
+> ```
 
-### 2.3 Set up analytics (Supabase, free)
-1. Create a free project at https://supabase.com (generate a strong DB password; keep it private).
-2. **SQL Editor → New query** → paste all of `supabase/schema.sql` → **Run**. "Success. No rows returned" is correct.
-3. **Project Settings → API Keys** → copy:
-   - **Project URL** (`https://xxxx.supabase.co`, no `/rest/v1/`)
-   - **Publishable key** (`sb_publishable_...`) or legacy **anon** key
-   - NEVER use the `secret` / `service_role` key.
-4. Put them in `config.js`:
-   ```js
-   window.SSA = { url: "https://xxxx.supabase.co", key: "sb_publishable_..." };
+### 2.3 Set Up Free Analytics Database (Supabase)
+1. Sign up for a free account at [supabase.com](https://supabase.com) and click **New Project**:
+   * **Project Name**: `ss-study-smarter`
+   * **Database Password**: Generate and securely store a strong password.
+   * **Region**: Select your preferred region (e.g., Frankfurt / Central EU).
+2. Open **SQL Editor → New Query**:
+   * Copy and paste the entire contents of [`supabase/schema.sql`](file:///C:/Users/Mohamed/.gemini/antigravity/scratch/SS-Study-Smarter/supabase/schema.sql).
+   * Click **Run**. Output should say `Success. No rows returned`.
+3. Retrieve your API credentials:
+   * Navigate to **Project Settings → API Keys** (or **Data API**).
+   * Copy the **Project URL** (e.g. `https://xxxx.supabase.co`).
+   * Copy the **Publishable key** (`sb_publishable_...`) or legacy **anon public key**.
+   * *Never use the secret or service_role key.*
+4. Paste your credentials into `config.js`:
+   ```javascript
+   window.SSA = {
+     url: "https://your-project.supabase.co",
+     key: "sb_publishable_your_key_here"
+   };
    ```
-5. Commit and push.
-
-### 2.4 First run
-1. **Actions → Daily artifact sync → Run workflow**.
-2. Open the log of the "Fetch artifact" step. You want `TITLE: <your title>` and `OK <size>`.
-3. Visit the site; answer one question; open `…/analytics.html`. You should see 1 visitor and 1 answered question.
+5. Commit and push your changes to GitHub `main`.
 
 ---
 
-## 3. Daily behaviour
+## 3. Daily Automation Behavior
 
-- The workflow runs **hourly 05:00–10:00 Cairo time** (`cron: "0 2-7 * * *"`, UTC+3).
-- At the start of each run it checks for an `Auto-update <today>` commit. If one exists, the run **skips** everything. If the artifact hasn't changed, nothing is committed and the next hour tries again.
-- **Manual runs** (Run workflow button) ignore the skip rule.
-- When Egypt ends daylight saving time (late October), the window shifts to 04:00–09:00 unless you change the cron to `0 3-8 * * *`.
-
----
-
-## 4. Analytics details
-
-- Dashboard: `https://<user>.github.io/<repo>/analytics.html`. **No password**; protection is only that the link isn't shared (and `noindex`). The Supabase public key is public by design, so someone technical could call the stats function. It exposes anonymous aggregate counts only. To lock it down later, re-add a passphrase check in `get_stats()` (earlier version used a `settings` table).
-- Metrics: unique visitors, page views, questions answered, parts done, exams done, per day and per exam day (Cairo timezone).
-- "Question answered" = a question with at least one non-empty answer box (grouped by stripping a trailing `_<digit>` from answer keys). Verify against real data and adjust `answeredCount()` in `tracker.js` if numbers look off.
-- Counting starts at install; earlier progress isn't backfilled.
-- Visitors can write counts but cannot read the table (Row Level Security: insert-only policy, no select policy).
-- Remove test rows with `delete from events where vid = 'selftest';` in the SQL Editor.
-- Consider telling visitors the site collects anonymous usage stats.
+* **Execution Window**: Runs **hourly between 05:00 and 10:00 Cairo time** (`cron: "0 2-7 * * *"` in UTC).
+* **Early-Exit Optimization**: Each hourly run inspects the git history for an `Auto-update <today>` commit. If an update was already committed earlier in the morning, the workflow exits in under 5 seconds to conserve CI resources.
+* **Manual Trigger**: You can run the sync at any time by clicking **Actions → Daily artifact sync → Run workflow**.
+* **Daylight Saving Time Note**: Egypt ends Daylight Saving Time in late October. When the clock changes, adjust the schedule in `.github/workflows/sync.yml` to `0 3-8 * * *` if you want to keep the local 05:00–10:00 window.
 
 ---
 
-## 5. Known caveats
+## 4. Modern Analytics Dashboard Features
 
-| Issue | Detail |
+Your dashboard is located at `https://<username>.github.io/<repo>/analytics.html`.
+
+### Key Features:
+1. **Light / Dark Mode**:
+   * Full theme toggle in the header actions bar.
+   * Remembers user selection in `localStorage` (`ssa-theme`).
+   * Automatically synchronizes with system preference (`prefers-color-scheme`).
+2. **Revisitor & Student Retention Telemetry**:
+   * **Revisitors KPI Card**: Tracks students returning for multi-day study sessions.
+   * **Retention Ratio Visualizer**: Interactive visual distribution bar for First-Time vs. Returning students.
+   * **Historical Cohort Columns**: Table breaks down daily traffic into New Students vs. Revisitors.
+3. **Trend Over Days Trajectory**:
+   * **Momentum Bar**: Displays 7-day trajectory direction (`↑ +N vs yesterday`, `→ Steady`), peak practice day, and daily question velocity.
+   * **Interactive SVG Bar Chart**: Toggle views between **All Visitors**, **New vs. Revisitors** (stacked multi-color visualization), and **Questions Solved**.
+4. **Exam Day Engagement Breakdown**:
+   * Progress bars showing engagement and question volume across each specific day of the camp.
+5. **Real-time Live Sync**:
+   * Auto-refreshes telemetry in the background every 60 seconds.
+   * Live status indicator (`● Live Database Connected`).
+
+---
+
+## 5. Security & Access Model
+
+* **Dashboard Access**: The dashboard link (`analytics.html`) is unlisted and tagged with `<meta name="robots" content="noindex,nofollow">`. It is accessed directly by anyone with the link.
+* **Database Security (RLS)**:
+  * Visitors have **insert-only permissions** restricted to valid event types (`view`, `answered`, `part_done`, `exam_done`).
+  * Table `select` queries from anonymous clients are blocked.
+  * Only the `get_stats()` server function (marked `security definer`) aggregates anonymous counts for dashboard presentation.
+* **Cleaning Test Data**: If you run tests that you want to purge from stats, execute in Supabase SQL Editor:
+  ```sql
+  delete from events where vid = 'selftest';
+  ```
+
+---
+
+## 6. Operational Notes & Troubleshooting
+
+| Scenario | Cause & Remedy |
 |---|---|
-| Cloudflare | `claude.ai` challenges bots. A real (headed) browser under `xvfb-run` got through from GitHub's servers in testing, but it may be blocked in the future. Fix: hourly retries (built in), or export the HTML manually. |
-| Pages build cancellations | The page is ~10 MB; a Pages build takes 1–5 min and a new push **cancels** a build in progress. Avoid pushing several times in a row. |
-| Artifact features | Anything depending on Claude's runtime (its own storage, calls to Claude) may not work off-Claude. Test the mirror. |
-| Cron delays | GitHub scheduled runs can start 5–30 minutes late. |
-| 60-day rule | GitHub disables schedules after 60 days without repo activity. Daily commits normally prevent this. |
-| Free tiers | Public repos have free Actions minutes. Supabase free projects **pause after ~7 days of no API activity**; visits keep it alive, or resume it from the dashboard. |
-
----
-
-## 6. Optional: local backup task (Windows)
-
-The reference setup also has a Windows Scheduled Task that runs `sync.py` (a copy of the same logic using local Brave) at 09:00. It is not needed once GitHub Actions works, and it can race with the workflow, so skip it unless you want a fallback.
-
----
-
-## 7. Security checklist
-
-- [ ] Only the publishable/anon key is in `config.js`.
-- [ ] `secret` / `service_role` key and DB password are not in the repo.
-- [ ] Row Level Security is enabled on `events` (done by `schema.sql`).
-- [ ] The analytics link is shared only with people who should see it.
+| **Cloudflare Verification Challenge** | `claude.ai` protects public artifacts with Cloudflare. The sync runs a full virtual browser via Playwright with automation flags disabled to pass the verification. If Cloudflare blocks an IP, the workflow retries across the hourly window. |
+| **Supabase Free Tier Inactivity** | Free Supabase projects pause after ~7 consecutive days without API queries. Student practice traffic keeps it active automatically; if paused, click **Resume** in the Supabase web dashboard. |
+| **GitHub Actions Delays** | Scheduled GitHub Actions workflows may occasionally start 5–25 minutes after the hour depending on global queue traffic. |
+| **GitHub 60-Day Inactivity Rule** | GitHub pauses scheduled cron workflows on repositories with no git commits for 60 consecutive days. Morning auto-updates normally prevent this. |
