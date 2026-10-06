@@ -3,7 +3,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 URL = "https://claude.ai/artifact/KsWnh4DMA3Dps7ED5SumU8"
-MIN_SIZE = 1_000_000
+MIN_SIZE = 100_000
 MARKER = "IM Camp"
 
 TAG = '<script src="config.js"></script><script src="tracker.js"></script>'
